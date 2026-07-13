@@ -84,12 +84,17 @@ app.get('/api/income', async (_req, res) => {
 });
 
 app.post('/api/income', async (req, res) => {
-  const { source, amount, date, note } = req.body;
-  const result = await client.execute({
-    sql: 'INSERT INTO income (source, amount, date, note) VALUES (?, ?, ?, ?)',
-    args: [source, amount, date, note || '']
-  });
-  res.json({ id: result.lastInsertRowid });
+  try {
+    const { source, amount, date, note } = req.body;
+    const result = await client.execute({
+      sql: 'INSERT INTO income (source, amount, date, note) VALUES (?, ?, ?, ?)',
+      args: [source, amount, date, note || '']
+    });
+    res.json({ ok: true, id: result.lastInsertRowid });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to save income.' });
+  }
 });
 
 app.delete('/api/income/:id', async (req, res) => {
@@ -103,12 +108,17 @@ app.get('/api/expenses', async (_req, res) => {
 });
 
 app.post('/api/expenses', async (req, res) => {
-  const { name, amount, category, date, note } = req.body;
-  const result = await client.execute({
-    sql: 'INSERT INTO expenses (name, amount, category, date, note) VALUES (?, ?, ?, ?, ?)',
-    args: [name, amount, category, date, note || '']
-  });
-  res.json({ id: result.lastInsertRowid });
+  try {
+    const { name, amount, category, date, note } = req.body;
+    const result = await client.execute({
+      sql: 'INSERT INTO expenses (name, amount, category, date, note) VALUES (?, ?, ?, ?, ?)',
+      args: [name, amount, category, date, note || '']
+    });
+    res.json({ ok: true, id: result.lastInsertRowid });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to save expense.' });
+  }
 });
 
 app.delete('/api/expenses/:id', async (req, res) => {

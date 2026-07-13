@@ -4,7 +4,7 @@ import { CircleDollarSign, FileDown, Home, Menu, ReceiptText, TrendingUp, Users 
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { calculateBalances, simplifyDebts } from './lib/tripUtils';
 
-const currencySymbol = '$';
+const currencySymbol = '৳';
 const categories = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Other'];
 
 function formatCurrency(value) {
@@ -25,6 +25,10 @@ function App() {
   const [tripExpenseForm, setTripExpenseForm] = useState({ personId: '', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
   const [reportState, setReportState] = useState({ startDate: '', endDate: '', output: '' });
   const [importStatus, setImportStatus] = useState('');
+  const [incomeFeedback, setIncomeFeedback] = useState({ type: '', message: '' });
+  const [expenseFeedback, setExpenseFeedback] = useState({ type: '', message: '' });
+  const [isSavingIncome, setIsSavingIncome] = useState(false);
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -49,22 +53,42 @@ function App() {
 
   async function handleIncomeSubmit(e) {
     e.preventDefault();
-    const payload = { ...incomeForm, amount: Number(incomeForm.amount) };
-    const res = await fetch('/api/income', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (res.ok) {
+    if (isSavingIncome) return;
+    setIsSavingIncome(true);
+    setIncomeFeedback({ type: '', message: '' });
+    try {
+      const payload = { ...incomeForm, amount: Number(incomeForm.amount) };
+      const res = await fetch('/api/income', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Unable to save income.');
       setIncomeForm({ source: '', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
-      fetchData();
+      setIncomeFeedback({ type: 'success', message: 'Income saved successfully.' });
+      await fetchData();
+    } catch (error) {
+      setIncomeFeedback({ type: 'error', message: error.message || 'Unable to save income.' });
+    } finally {
+      setIsSavingIncome(false);
     }
   }
 
   async function handleExpenseSubmit(e) {
     e.preventDefault();
-    const category = expenseForm.customCategory ? expenseForm.customCategory : expenseForm.category;
-    const payload = { ...expenseForm, category, amount: Number(expenseForm.amount) };
-    const res = await fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (res.ok) {
+    if (isSavingExpense) return;
+    setIsSavingExpense(true);
+    setExpenseFeedback({ type: '', message: '' });
+    try {
+      const category = expenseForm.customCategory ? expenseForm.customCategory : expenseForm.category;
+      const payload = { ...expenseForm, category, amount: Number(expenseForm.amount) };
+      const res = await fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Unable to save expense.');
       setExpenseForm({ name: '', amount: '', category: 'Food', date: new Date().toISOString().slice(0, 10), note: '', customCategory: '' });
-      fetchData();
+      setExpenseFeedback({ type: 'success', message: 'Expense saved successfully.' });
+      await fetchData();
+    } catch (error) {
+      setExpenseFeedback({ type: 'error', message: error.message || 'Unable to save expense.' });
+    } finally {
+      setIsSavingExpense(false);
     }
   }
 
@@ -225,7 +249,7 @@ function App() {
           <div className="px-4 py-4 sm:px-6 lg:px-8">
             <Routes>
               <Route path="/" element={<Dashboard summary={summary} recent={recent} chartData={chartData} monthly={monthly} />} />
-              <Route path="/transactions" element={<TransactionsPage incomeForm={incomeForm} setIncomeForm={setIncomeForm} expenseForm={expenseForm} setExpenseForm={setExpenseForm} handleIncomeSubmit={handleIncomeSubmit} handleExpenseSubmit={handleExpenseSubmit} transactions={transactions} deleteTransaction={deleteTransaction} />} />
+              <Route path="/transactions" element={<TransactionsPage incomeForm={incomeForm} setIncomeForm={setIncomeForm} expenseForm={expenseForm} setExpenseForm={setExpenseForm} handleIncomeSubmit={handleIncomeSubmit} handleExpenseSubmit={handleExpenseSubmit} transactions={transactions} deleteTransaction={deleteTransaction} incomeFeedback={incomeFeedback} expenseFeedback={expenseFeedback} isSavingIncome={isSavingIncome} isSavingExpense={isSavingExpense} />} />
               <Route path="/trends" element={<TrendsPage monthly={monthly} />} />
               <Route path="/reports" element={<ReportsPage reportState={reportState} setReportState={setReportState} exportCsv={exportCsv} exportXlsx={exportXlsx} importXlsx={importXlsx} importStatus={importStatus} transactions={transactions} />} />
               <Route path="/trips" element={<TripsPage trips={trips} tripForm={tripForm} setTripForm={setTripForm} createTrip={createTrip} deleteTrip={deleteTrip} setTripDetail={setTripDetail} fetchTripDetail={fetchTripDetail} />} />
@@ -326,7 +350,7 @@ function Dashboard({ summary, recent, chartData, monthly }) {
   );
 }
 
-function TransactionsPage({ incomeForm, setIncomeForm, expenseForm, setExpenseForm, handleIncomeSubmit, handleExpenseSubmit, transactions, deleteTransaction }) {
+function TransactionsPage({ incomeForm, setIncomeForm, expenseForm, setExpenseForm, handleIncomeSubmit, handleExpenseSubmit, transactions, deleteTransaction, incomeFeedback, expenseFeedback, isSavingIncome, isSavingExpense }) {
   return (
     <div className="space-y-4">
       <Card title="Add Income">
@@ -335,7 +359,8 @@ function TransactionsPage({ incomeForm, setIncomeForm, expenseForm, setExpenseFo
           <input type="number" value={incomeForm.amount} onChange={e => setIncomeForm({ ...incomeForm, amount: e.target.value })} placeholder="Amount" required className="w-full rounded-2xl border border-slate-200 p-3" />
           <input type="date" value={incomeForm.date} onChange={e => setIncomeForm({ ...incomeForm, date: e.target.value })} className="w-full rounded-2xl border border-slate-200 p-3" />
           <textarea value={incomeForm.note} onChange={e => setIncomeForm({ ...incomeForm, note: e.target.value })} placeholder="Optional note" className="w-full rounded-2xl border border-slate-200 p-3" />
-          <button className="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white">Save Income</button>
+          <button disabled={isSavingIncome} className="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">{isSavingIncome ? 'Saving...' : 'Save Income'}</button>
+          {incomeFeedback.message ? <p className={`mt-2 text-sm ${incomeFeedback.type === 'success' ? 'text-emerald-700' : 'text-rose-700'}`}>{incomeFeedback.message}</p> : null}
         </form>
       </Card>
       <Card title="Add Expense">
@@ -348,7 +373,8 @@ function TransactionsPage({ incomeForm, setIncomeForm, expenseForm, setExpenseFo
           <input value={expenseForm.customCategory} onChange={e => setExpenseForm({ ...expenseForm, customCategory: e.target.value })} placeholder="Add custom category" className="w-full rounded-2xl border border-slate-200 p-3" />
           <input type="date" value={expenseForm.date} onChange={e => setExpenseForm({ ...expenseForm, date: e.target.value })} className="w-full rounded-2xl border border-slate-200 p-3" />
           <textarea value={expenseForm.note} onChange={e => setExpenseForm({ ...expenseForm, note: e.target.value })} placeholder="Optional note" className="w-full rounded-2xl border border-slate-200 p-3" />
-          <button className="w-full rounded-2xl bg-orange-600 px-4 py-3 font-semibold text-white">Save Expense</button>
+          <button disabled={isSavingExpense} className="w-full rounded-2xl bg-orange-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">{isSavingExpense ? 'Saving...' : 'Save Expense'}</button>
+          {expenseFeedback.message ? <p className={`mt-2 text-sm ${expenseFeedback.type === 'success' ? 'text-emerald-700' : 'text-rose-700'}`}>{expenseFeedback.message}</p> : null}
         </form>
       </Card>
       <Card title="Recent Entries">
