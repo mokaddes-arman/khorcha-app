@@ -244,8 +244,8 @@ function App() {
             <div className="mb-8 flex items-center gap-3">
               <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700"><CircleDollarSign size={24} /></div>
               <div>
-                <p className="text-lg font-semibold">FinanceFlow</p>
-                <p className="text-sm text-slate-500">Single-user tracker</p>
+                <p className="text-lg font-semibold">Khorcha</p>
+                <p className="text-sm text-slate-500">Personal Financial Tracker</p>
               </div>
             </div>
             <nav className="space-y-2">
@@ -267,8 +267,8 @@ function App() {
           <header className="border-b border-slate-200 bg-white/80 px-4 py-4 backdrop-blur sm:px-6 lg:hidden">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg font-semibold">FinanceFlow</p>
-                <p className="text-sm text-slate-500">Personal finance app</p>
+                <p className="text-lg font-semibold">Khorcha</p>
+                <p className="text-sm text-slate-500">Personal Financial Tracker</p>
               </div>
               <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="rounded-full p-2 text-slate-600"><Menu /></button>
             </div>
