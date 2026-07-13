@@ -35,19 +35,35 @@ function App() {
   }, []);
 
   async function fetchData() {
-    const [incomeRes, expenseRes, tripsRes] = await Promise.all([
+    const [incomeResult, expenseResult, tripsResult] = await Promise.allSettled([
       fetch('/api/income'),
       fetch('/api/expenses'),
       fetch('/api/trips')
     ]);
-    const income = await incomeRes.json();
-    const expenses = await expenseRes.json();
-    const trips = await tripsRes.json();
+
+    const income = incomeResult.status === 'fulfilled' && incomeResult.value.ok
+      ? await incomeResult.value.json().catch(() => [])
+      : [];
+    const expenses = expenseResult.status === 'fulfilled' && expenseResult.value.ok
+      ? await expenseResult.value.json().catch(() => [])
+      : [];
+    const trips = tripsResult.status === 'fulfilled' && tripsResult.value.ok
+      ? await tripsResult.value.json().catch(() => [])
+      : [];
+
     setTransactions({ income, expenses });
     setTrips(trips);
+
     if (trips[0]) {
-      const detail = await fetch(`/api/trips/${trips[0].id}`).then(r => r.json());
-      setTripDetail(normalizeTripDetail(detail));
+      const detailRes = await fetch(`/api/trips/${trips[0].id}`);
+      if (detailRes.ok) {
+        const detail = await detailRes.json().catch(() => null);
+        setTripDetail(normalizeTripDetail(detail));
+      } else {
+        setTripDetail(null);
+      }
+    } else {
+      setTripDetail(null);
     }
   }
 
