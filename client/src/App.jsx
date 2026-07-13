@@ -3,6 +3,7 @@ import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { CircleDollarSign, FileDown, Home, Menu, ReceiptText, TrendingUp, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { calculateBalances, simplifyDebts } from './lib/tripUtils';
+import { buildComparisonSeries } from './lib/periodUtils';
 
 const currencySymbol = '৳';
 const categories = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Other'];
@@ -17,7 +18,7 @@ function App() {
   const [transactions, setTransactions] = useState({ income: [], expenses: [] });
   const [trips, setTrips] = useState([]);
   const [tripDetail, setTripDetail] = useState(null);
-  const [range, setRange] = useState('month');
+  const [comparisonRange, setComparisonRange] = useState('monthly');
   const [incomeForm, setIncomeForm] = useState({ source: '', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [expenseForm, setExpenseForm] = useState({ name: '', amount: '', category: 'Food', date: new Date().toISOString().slice(0, 10), note: '', customCategory: '' });
   const [tripForm, setTripForm] = useState({ name: '', date: new Date().toISOString().slice(0, 10), description: '' });
@@ -35,34 +36,44 @@ function App() {
   }, []);
 
   async function fetchData() {
-    const [incomeResult, expenseResult, tripsResult] = await Promise.allSettled([
-      fetch('/api/income'),
-      fetch('/api/expenses'),
-      fetch('/api/trips')
-    ]);
+    try {
+      const [incomeResult, expenseResult, tripsResult] = await Promise.allSettled([
+        fetch('/api/income'),
+        fetch('/api/expenses'),
+        fetch('/api/trips')
+      ]);
 
-    const income = incomeResult.status === 'fulfilled' && incomeResult.value.ok
-      ? await incomeResult.value.json().catch(() => [])
-      : [];
-    const expenses = expenseResult.status === 'fulfilled' && expenseResult.value.ok
-      ? await expenseResult.value.json().catch(() => [])
-      : [];
-    const trips = tripsResult.status === 'fulfilled' && tripsResult.value.ok
-      ? await tripsResult.value.json().catch(() => [])
-      : [];
+      const income = incomeResult.status === 'fulfilled' && incomeResult.value.ok
+        ? await incomeResult.value.json().catch(() => [])
+        : [];
+      const expenses = expenseResult.status === 'fulfilled' && expenseResult.value.ok
+        ? await expenseResult.value.json().catch(() => [])
+        : [];
+      const trips = tripsResult.status === 'fulfilled' && tripsResult.value.ok
+        ? await tripsResult.value.json().catch(() => [])
+        : [];
 
-    setTransactions({ income, expenses });
-    setTrips(trips);
+      setTransactions({ income, expenses });
+      setTrips(trips);
 
-    if (trips[0]) {
-      const detailRes = await fetch(`/api/trips/${trips[0].id}`);
-      if (detailRes.ok) {
-        const detail = await detailRes.json().catch(() => null);
-        setTripDetail(normalizeTripDetail(detail));
+      if (trips[0]) {
+        try {
+          const detailRes = await fetch(`/api/trips/${trips[0].id}`);
+          if (detailRes.ok) {
+            const detail = await detailRes.json().catch(() => null);
+            setTripDetail(normalizeTripDetail(detail));
+          } else {
+            setTripDetail(null);
+          }
+        } catch {
+          setTripDetail(null);
+        }
       } else {
         setTripDetail(null);
       }
-    } else {
+    } catch {
+      setTransactions({ income: [], expenses: [] });
+      setTrips([]);
       setTripDetail(null);
     }
   }
@@ -79,7 +90,7 @@ function App() {
       if (!res.ok) throw new Error(data.error || 'Unable to save income.');
       setIncomeForm({ source: '', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
       setIncomeFeedback({ type: 'success', message: 'Income saved successfully.' });
-      await fetchData();
+      await fetchData().catch(() => undefined);
     } catch (error) {
       setIncomeFeedback({ type: 'error', message: error.message || 'Unable to save income.' });
     } finally {
@@ -100,7 +111,7 @@ function App() {
       if (!res.ok) throw new Error(data.error || 'Unable to save expense.');
       setExpenseForm({ name: '', amount: '', category: 'Food', date: new Date().toISOString().slice(0, 10), note: '', customCategory: '' });
       setExpenseFeedback({ type: 'success', message: 'Expense saved successfully.' });
-      await fetchData();
+      await fetchData().catch(() => undefined);
     } catch (error) {
       setExpenseFeedback({ type: 'error', message: error.message || 'Unable to save expense.' });
     } finally {
@@ -223,6 +234,8 @@ function App() {
     return Object.values(buckets).slice(-6);
   }, [transactions]);
 
+  const comparisonData = useMemo(() => buildComparisonSeries(transactions, comparisonRange), [transactions, comparisonRange]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <div className="mx-auto flex max-w-7xl flex-col lg:flex-row">
@@ -266,7 +279,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard summary={summary} recent={recent} chartData={chartData} monthly={monthly} />} />
               <Route path="/transactions" element={<TransactionsPage incomeForm={incomeForm} setIncomeForm={setIncomeForm} expenseForm={expenseForm} setExpenseForm={setExpenseForm} handleIncomeSubmit={handleIncomeSubmit} handleExpenseSubmit={handleExpenseSubmit} transactions={transactions} deleteTransaction={deleteTransaction} incomeFeedback={incomeFeedback} expenseFeedback={expenseFeedback} isSavingIncome={isSavingIncome} isSavingExpense={isSavingExpense} />} />
-              <Route path="/trends" element={<TrendsPage monthly={monthly} />} />
+              <Route path="/trends" element={<TrendsPage comparisonRange={comparisonRange} setComparisonRange={setComparisonRange} comparisonData={comparisonData} />} />
               <Route path="/reports" element={<ReportsPage reportState={reportState} setReportState={setReportState} exportCsv={exportCsv} exportXlsx={exportXlsx} importXlsx={importXlsx} importStatus={importStatus} transactions={transactions} />} />
               <Route path="/trips" element={<TripsPage trips={trips} tripForm={tripForm} setTripForm={setTripForm} createTrip={createTrip} deleteTrip={deleteTrip} setTripDetail={setTripDetail} fetchTripDetail={fetchTripDetail} />} />
               <Route path="/trips/:id" element={<TripDetailPage tripDetail={tripDetail} setTripDetail={setTripDetail} tripPersonForm={tripPersonForm} setTripPersonForm={setTripPersonForm} addPerson={addPerson} tripExpenseForm={tripExpenseForm} setTripExpenseForm={setTripExpenseForm} addTripExpense={addTripExpense} />} />
@@ -413,22 +426,35 @@ function TransactionsPage({ incomeForm, setIncomeForm, expenseForm, setExpenseFo
   );
 }
 
-function TrendsPage({ monthly }) {
+function TrendsPage({ comparisonRange, setComparisonRange, comparisonData }) {
   return (
     <div className="space-y-4">
       <Card title="Trend Comparison">
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="income" fill="#34d399" />
-              <Bar dataKey="expense" fill="#fb923c" />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">Choose a period to compare income and expenses.</p>
+          <select value={comparisonRange} onChange={e => setComparisonRange(e.target.value)} className="rounded-2xl border border-slate-200 p-3 text-sm">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
         </div>
+        {comparisonData.length === 0 ? (
+          <p className="text-sm text-slate-500">No transaction data yet.</p>
+        ) : (
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={comparisonData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="income" fill="#34d399" />
+                <Bar dataKey="expense" fill="#fb923c" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </Card>
     </div>
   );
