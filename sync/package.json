@@ -1,0 +1,11 @@
+{
+  "name": "finance-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "pull": "node pull.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.8.0"
+  }
+}

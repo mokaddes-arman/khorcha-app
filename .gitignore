@@ -1,0 +1,7 @@
+node_modules/
+client/node_modules/
+server/node_modules/
+sync/node_modules/
+.env
+local-data/
+dist/
