@@ -250,11 +250,11 @@ function App() {
 }
 
 const navItems = [
-  { to: '/', label: 'Home', icon: <Home size={18} /> },
-  { to: '/transactions', label: 'Trans', icon: <ReceiptText size={18} /> },
-  { to: '/trends', label: 'Trends', icon: <TrendingUp size={18} /> },
+  { to: '/', label: 'Dashboard', icon: <Home size={18} /> },
+  { to: '/transactions', label: 'Transactions', icon: <ReceiptText size={18} /> },
+  { to: '/trends', label: 'Comparisons', icon: <TrendingUp size={18} /> },
   { to: '/reports', label: 'Reports', icon: <FileDown size={18} /> },
-  { to: '/trips', label: 'Trips', icon: <Users size={18} /> }
+  { to: '/trips', label: 'Splits', icon: <Users size={18} /> }
 ];
 
 function normalizeTripDetail(detail) {
